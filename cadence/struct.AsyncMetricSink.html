@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `AsyncMetricSink` struct in crate `cadence`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, AsyncMetricSink">
+
+    <title>cadence::AsyncMetricSink - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>cadence</a></p><script>window.sidebarCurrent = {name: 'AsyncMetricSink', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>cadence</a>::<wbr><a class='struct' href=''>AsyncMetricSink</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-362' class='srclink' href='../src/cadence/src/sinks/threading.rs.html#52-55' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct AsyncMetricSink&lt;T:&nbsp;'static + <a class='trait' href='../cadence/trait.MetricSink.html' title='cadence::MetricSink'>MetricSink</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html' title='core::marker::Sync'>Sync</a>&gt; { /* fields omitted */ }</pre><div class='docblock'><p>Implementation of a <code>MetricSink</code> that wraps another implementation
+and uses it to emit metrics asynchronously with a thread pool.</p>
+
+<p>The wrapped implementation can by any thread safe (<code>Send + Sync</code>)
+<code>MetricSink</code> implementation. Results from the wrapped implementation
+will be discarded.</p>
+
+<p>Because this <code>MetricSink</code> implementation uses a thread pool, the sink
+itself cannot be shared between threads. Instead, callers may opt to
+create a <code>.clone()</code> for each thread that needs to emit metrics. This
+of course requires that the wrapped sink implements the <code>Clone</code> trait
+(all of the sinks that are part of Cadence implement <code>Clone</code>).</p>
+
+<p>When cloned, the new instance of this sink will have a cloned thread
+pool instance that submits jobs to the same worker threads as the
+original pool and a reference (<code>Arc</code>) to the wrapped sink. If you
+plan on cloning this sink, the thread pool should be sized
+appropriately to be used by all expected sink instances.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;T:&nbsp;'static + <a class='trait' href='../cadence/trait.MetricSink.html' title='cadence::MetricSink'>MetricSink</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html' title='core::marker::Sync'>Sync</a>&gt; <a class='struct' href='../cadence/struct.AsyncMetricSink.html' title='cadence::AsyncMetricSink'>AsyncMetricSink</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-157' class='srclink' href='../src/cadence/src/sinks/threading.rs.html#58-137' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.from' class='method'><span id='from.v' class='invisible'><code>fn <a href='#method.from' class='fnname'>from</a>(sink: T) -&gt; <a class='struct' href='../cadence/struct.AsyncMetricSink.html' title='cadence::AsyncMetricSink'>AsyncMetricSink</a>&lt;T&gt;</code></span></h4>
+<div class='docblock'><p>Construct a new <code>AsyncMetricSink</code> instance wrapping another sink
+implementation.</p>
+
+<p>The <code>.emit()</code> method of the wrapped sink will be executed in a
+different thread via a thread pool. The wrapped sink should be
+thread safe (<code>Send + Sync</code>).</p>
+
+<p>The default thread pool size is four threads. Callers can use
+more or fewer threads by making use of the <code>with_threadpool</code>
+constructor.</p>
+
+<h1 id='udp-sink-example' class='section-header'><a href='#udp-sink-example'>UDP Sink Example</a></h1>
+<p>In this example we wrap the basic UDP sink to execute it in a
+different thread.</p>
+
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>net</span>::<span class='ident'>UdpSocket</span>;
+<span class='kw'>use</span> <span class='ident'>cadence</span>::{<span class='ident'>UdpMetricSink</span>, <span class='ident'>AsyncMetricSink</span>, <span class='ident'>DEFAULT_PORT</span>};
+
+<span class='kw'>let</span> <span class='ident'>socket</span> <span class='op'>=</span> <span class='ident'>UdpSocket</span>::<span class='ident'>bind</span>(<span class='string'>&quot;0.0.0.0:0&quot;</span>).<span class='ident'>unwrap</span>();
+<span class='kw'>let</span> <span class='ident'>host</span> <span class='op'>=</span> (<span class='string'>&quot;metrics.example.com&quot;</span>, <span class='ident'>DEFAULT_PORT</span>);
+<span class='kw'>let</span> <span class='ident'>udp_sink</span> <span class='op'>=</span> <span class='ident'>UdpMetricSink</span>::<span class='ident'>from</span>(<span class='ident'>host</span>, <span class='ident'>socket</span>).<span class='ident'>unwrap</span>();
+<span class='kw'>let</span> <span class='ident'>async_sink</span> <span class='op'>=</span> <span class='ident'>AsyncMetricSink</span>::<span class='ident'>from</span>(<span class='ident'>udp_sink</span>);<a class='test-arrow' target='_blank' href=''>Run</a></pre>
+
+<h1 id='buffered-udp-sink-example' class='section-header'><a href='#buffered-udp-sink-example'>Buffered UDP Sink Example</a></h1>
+<p>This example uses the buffered UDP sink, wrapped in the async
+metric sink.</p>
+
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>net</span>::<span class='ident'>UdpSocket</span>;
+<span class='kw'>use</span> <span class='ident'>cadence</span>::{<span class='ident'>BufferedUdpMetricSink</span>, <span class='ident'>AsyncMetricSink</span>, <span class='ident'>DEFAULT_PORT</span>};
+
+<span class='kw'>let</span> <span class='ident'>socket</span> <span class='op'>=</span> <span class='ident'>UdpSocket</span>::<span class='ident'>bind</span>(<span class='string'>&quot;0.0.0.0:0&quot;</span>).<span class='ident'>unwrap</span>();
+<span class='kw'>let</span> <span class='ident'>host</span> <span class='op'>=</span> (<span class='string'>&quot;metrics.example.com&quot;</span>, <span class='ident'>DEFAULT_PORT</span>);
+<span class='kw'>let</span> <span class='ident'>udp_sink</span> <span class='op'>=</span> <span class='ident'>BufferedUdpMetricSink</span>::<span class='ident'>from</span>(<span class='ident'>host</span>, <span class='ident'>socket</span>).<span class='ident'>unwrap</span>();
+<span class='kw'>let</span> <span class='ident'>async_sink</span> <span class='op'>=</span> <span class='ident'>AsyncMetricSink</span>::<span class='ident'>from</span>(<span class='ident'>udp_sink</span>);<a class='test-arrow' target='_blank' href=''>Run</a></pre>
+</div><h4 id='method.with_threadpool' class='method'><span id='with_threadpool.v' class='invisible'><code>fn <a href='#method.with_threadpool' class='fnname'>with_threadpool</a>(sink: T, pool: ThreadPool) -&gt; <a class='struct' href='../cadence/struct.AsyncMetricSink.html' title='cadence::AsyncMetricSink'>AsyncMetricSink</a>&lt;T&gt;</code></span></h4>
+<div class='docblock'><p>Construct a new <code>AsyncMetricSink</code> instance wrapping another sink
+implementation that will use the provided thread pool for
+asynchronous execution.</p>
+
+<p>The <code>.emit()</code> method of the wrapped sink will be executed in a
+different thread via a thread pool. The wrapped sink should be
+thread safe (<code>Send + Sync</code>).</p>
+
+<h1 id='buffered-udp-sink-with-a-single-threaded-pool' class='section-header'><a href='#buffered-udp-sink-with-a-single-threaded-pool'>Buffered UDP Sink With a Single Threaded Pool</a></h1>
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>net</span>::<span class='ident'>UdpSocket</span>;
+<span class='kw'>use</span> <span class='ident'>threadpool</span>::<span class='ident'>ThreadPool</span>;
+<span class='kw'>use</span> <span class='ident'>cadence</span>::{<span class='ident'>BufferedUdpMetricSink</span>, <span class='ident'>AsyncMetricSink</span>, <span class='ident'>DEFAULT_PORT</span>};
+
+<span class='kw'>let</span> <span class='ident'>socket</span> <span class='op'>=</span> <span class='ident'>UdpSocket</span>::<span class='ident'>bind</span>(<span class='string'>&quot;0.0.0.0:0&quot;</span>).<span class='ident'>unwrap</span>();
+<span class='kw'>let</span> <span class='ident'>host</span> <span class='op'>=</span> (<span class='string'>&quot;metrics.example.com&quot;</span>, <span class='ident'>DEFAULT_PORT</span>);
+<span class='kw'>let</span> <span class='ident'>udp_sink</span> <span class='op'>=</span> <span class='ident'>BufferedUdpMetricSink</span>::<span class='ident'>from</span>(<span class='ident'>host</span>, <span class='ident'>socket</span>).<span class='ident'>unwrap</span>();
+<span class='kw'>let</span> <span class='ident'>async_sink</span> <span class='op'>=</span> <span class='ident'>AsyncMetricSink</span>::<span class='ident'>with_threadpool</span>(
+    <span class='ident'>udp_sink</span>, <span class='ident'>ThreadPool</span>::<span class='ident'>new</span>(<span class='number'>1</span>));<a class='test-arrow' target='_blank' href=''>Run</a></pre>
+</div></div><h2 id='implementations'>Trait Implementations</h2><h3 class='impl'><span class='in-band'><code>impl&lt;T:&nbsp;<a class='trait' href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html' title='core::fmt::Debug'>Debug</a> + 'static + <a class='trait' href='../cadence/trait.MetricSink.html' title='cadence::MetricSink'>MetricSink</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html' title='core::marker::Sync'>Sync</a>&gt; <a class='trait' href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html' title='core::fmt::Debug'>Debug</a> for <a class='struct' href='../cadence/struct.AsyncMetricSink.html' title='cadence::AsyncMetricSink'>AsyncMetricSink</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-366' class='srclink' href='../src/cadence/src/sinks/threading.rs.html#51' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.fmt' class='method'><span id='fmt.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#tymethod.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class='struct' href='https://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html' title='core::fmt::Formatter'>Formatter</a>) -&gt; <a class='type' href='https://doc.rust-lang.org/nightly/core/fmt/type.Result.html' title='core::fmt::Result'>Result</a></code></span></h4>
+<div class='docblock'><p>Formats the value using the given formatter.</p>
+</div></div><h3 class='impl'><span class='in-band'><code>impl&lt;T:&nbsp;<a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> + 'static + <a class='trait' href='../cadence/trait.MetricSink.html' title='cadence::MetricSink'>MetricSink</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html' title='core::marker::Sync'>Sync</a>&gt; <a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> for <a class='struct' href='../cadence/struct.AsyncMetricSink.html' title='cadence::AsyncMetricSink'>AsyncMetricSink</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-374' class='srclink' href='../src/cadence/src/sinks/threading.rs.html#51' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.clone' class='method'><span id='clone.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class='struct' href='../cadence/struct.AsyncMetricSink.html' title='cadence::AsyncMetricSink'>AsyncMetricSink</a>&lt;T&gt;</code></span></h4>
+<div class='docblock'><p>Returns a copy of the value. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#tymethod.clone">Read more</a></p>
+</div><h4 id='method.clone_from' class='method'><span id='clone_from.v' class='invisible'><code>fn <a href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: &amp;Self)</code><div class='since' title='Stable since Rust version 1.0.0'>1.0.0</div></span></h4>
+<div class='docblock'><p>Performs copy-assignment from <code>source</code>. <a href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from">Read more</a></p>
+</div></div><h3 class='impl'><span class='in-band'><code>impl&lt;T:&nbsp;'static + <a class='trait' href='../cadence/trait.MetricSink.html' title='cadence::MetricSink'>MetricSink</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html' title='core::marker::Sync'>Sync</a>&gt; <a class='trait' href='../cadence/trait.MetricSink.html' title='cadence::MetricSink'>MetricSink</a> for <a class='struct' href='../cadence/struct.AsyncMetricSink.html' title='cadence::AsyncMetricSink'>AsyncMetricSink</a>&lt;T&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-164' class='srclink' href='../src/cadence/src/sinks/threading.rs.html#140-151' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.emit' class='method'><span id='emit.v' class='invisible'><code>fn <a href='../cadence/trait.MetricSink.html#tymethod.emit' class='fnname'>emit</a>(&amp;self, metric: &amp;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.str.html'>str</a>) -&gt; <a class='type' href='https://doc.rust-lang.org/nightly/std/io/error/type.Result.html' title='std::io::error::Result'>Result</a>&lt;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>&gt;</code></span></h4>
+<div class='docblock'><p>Send the Statsd metric using this sink and return the number of bytes written or an I/O error. <a href="../cadence/trait.MetricSink.html#tymethod.emit">Read more</a></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "cadence";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    <script src="../extra.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>
